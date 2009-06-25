@@ -37,7 +37,7 @@ if [ -f Makefile ]
 then
 	echo "Using old configuration. Delete build/$BINUTILS/Makefile to configure again"
 else
-	$TOPLEVELDIR/$BINUTILS/configure --target=arm-linux --prefix=$TOPLEVELDIR/$TARGET
+	$TOPLEVELDIR/$BINUTILS/configure --target=arm-linux --prefix=$TOPLEVELDIR/$TARGET --disable-nls
 fi
 make
 make install
