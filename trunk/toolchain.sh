@@ -46,7 +46,6 @@ mkdir -pv $PREFIX
 
 # Extract Linux kernel
 CURRENT=$KERNEL
-echo "$CURRENT"
 extract
 
 # Installation of Linux Headers
@@ -116,7 +115,7 @@ extract
 cd build/$GCC
 if [ -f Makefile ]
 then
-	echo "Using old configuration. Delete build/$BINUTILS/Makefile to configure again"
+	echo "Using old configuration. Delete build/$GCC/Makefile to configure again"
 else
 	AR=ar LDFLAGS="-Wl,-rpath,$PREFIX/lib" \
 	$TOPLEVELDIR/$GCC/configure --target=$TARGET --build=$MACHTYPE \
