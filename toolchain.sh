@@ -21,15 +21,24 @@ CURRENT=
 
 GCC=gcc-4.4.0
 BINUTILS=binutils-2.19.1
-KERNEL=linux-2.6.30
+KERNEL=linux-2.6.29
 GMP=gmp-4.3.1
 MPFR=mpfr-2.4.1
+LIBC=uClibc-0.9.30.1
 
-if [ $1 = "clean" ]
+# Set PATH
+export PATH=$PREFIX/bin:$PATH
+
+if [ $# -eq 1 ] && [ $1 == "clean" ]
 then
+	echo "Cleaning..."
 	rm -rf $GCC $BINUTILS $KERNEL $GMP $MPFR $PREFIX build
 	return
+else
+	echo "Running build script..."
 fi
+
+SVN_CLFS=svn.cross-lfs.org/svn/repos/cross-lfs/branches/clfs-embedded
 
 # Download source packages
 wget -c http://ftp.gnu.org/gnu/gcc/$GCC/$GCC.tar.bz2 \
@@ -37,8 +46,11 @@ wget -c http://ftp.gnu.org/gnu/gcc/$GCC/$GCC.tar.bz2 \
 		http://ftp.gnu.org/gnu/gmp/$GMP.tar.bz2 \
 		http://www.mpfr.org/mpfr-current/$MPFR.tar.bz2 \
 		http://www.kernel.org/pub/linux/kernel/v2.6/$KERNEL.tar.bz2 \
-		http://svn.cross-lfs.org/svn/repos/cross-lfs/branches/clfs-embedded/patches/binutils-2.19.1-branch_update-1.patch \
-		http://svn.cross-lfs.org/svn/repos/cross-lfs/branches/clfs-embedded/patches/binutils-2.19.1-posix-1.patch
+		http://uclibc.org/downloads/$LIBC.tar.bz2 \
+		http://$SVN_CLFS/patches/uClibc-0.9.30.1-branch_update-1.patch \
+		http://$SVN_CLFS/config/uClibc-0.9.30.1.config \
+		http://$SVN_CLFS/patches/binutils-2.19.1-branch_update-1.patch \
+		http://$SVN_CLFS/patches/binutils-2.19.1-posix-1.patch
 
 mkdir -pv build/$BINUTILS
 mkdir -pv build/$GCC
@@ -62,19 +74,29 @@ cd $TOPLEVELDIR
 CURRENT=$GMP
 extract
 cd $GMP
-./configure --prefix=$PREFIX --enable-mpbsd
-make
-make install
+if [ -f Makefile ]
+then
+	echo "Skipping $GMP build. Remove $GMP/Makefile to build again."
+else
+	./configure --prefix=$PREFIX --enable-mpbsd
+	make
+	make install
+fi
 cd $TOPLEVELDIR
 
 # Extract build and install MPFR
 CURRENT=$MPFR
 extract
 cd $MPFR
-LDFLAGS="-Wl,-rpath,$PREFIX/lib" ./configure --prefix=$PREFIX \
-	--enable-shared --with-gmp=$PREFIX
-make
-make install
+if [ -f Makefile ]
+then
+	echo "Skipping $MPFR build. Remove $MPFR/Makefile to build again"
+else
+	LDFLAGS="-Wl,-rpath,$PREFIX/lib" ./configure --prefix=$PREFIX \
+		--enable-shared --with-gmp=$PREFIX
+	make
+	make install
+fi
 cd $TOPLEVELDIR
 
 # Extract binutils
@@ -94,14 +116,15 @@ sed -i 's/as_bad (_(r/as_bad ("%s", _(r/' $BINUTILS/gas/config/tc-arm.c
 cd $TOPLEVELDIR/build/$BINUTILS
 if [ -f Makefile ]
 then
-	echo "Using old configuration. Delete build/$BINUTILS/Makefile to configure again"
+	echo "Skipping $BINUTILS build. Delete build/$BINUTILS/Makefile to build again"
 else
 	$TOPLEVELDIR/$BINUTILS/configure --target=$TARGET --prefix=$PREFIX \
 	--with-sysroot=$PREFIX --disable-nls --enable-shared --disable-multilib
+
+	make configure-host
+	make
+	make install
 fi
-make configure-host
-make
-make install
 cp -v $TOPLEVELDIR/$BINUTILS/include/libiberty.h $PREFIX/usr/include
 cd $TOPLEVELDIR
 
@@ -115,7 +138,7 @@ extract
 cd build/$GCC
 if [ -f Makefile ]
 then
-	echo "Using old configuration. Delete build/$GCC/Makefile to configure again"
+	echo "Skipping $GCC build. Delete build/$GCC/Makefile to build again"
 else
 	AR=ar LDFLAGS="-Wl,-rpath,$PREFIX/lib" \
 	$TOPLEVELDIR/$GCC/configure --target=$TARGET --build=$MACHTYPE \
@@ -124,8 +147,20 @@ else
 	--with-mpfr=$PREFIX --with-gmp=$PREFIX --without-headers \
 	--with-newlib --disable-decimal-float --disable-libgomp \
 	--disable-libmudflap --disable-libssp --disable-threads --enable-languages=c
+
+	make
+	make install
 fi
+cd $TOPLEVELDIR
+
+# Extract build and install uClibc
+CURRENT=$LIBC
+extract
+cd $LIBC
+patch -Np1 -i ../uClibc-0.9.30.1-branch_update-1.patch
+cp ../uClibc-0.9.30.1.config .config
+make menuconfig
 make
-make install
+make PREFIX=$PREFIX install
 cd $TOPLEVELDIR
 
