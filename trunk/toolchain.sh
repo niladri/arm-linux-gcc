@@ -29,10 +29,10 @@ LIBC=uClibc-0.9.30.1
 # Set PATH
 export PATH=$PREFIX/bin:$PATH
 
-if [ $# -eq 1 ] && [ $1 == "clean" ]
+if [ $# -eq 1 ] && [ $1 = "clean" ]
 then
 	echo "Cleaning..."
-	rm -rf $GCC $BINUTILS $KERNEL $GMP $MPFR $PREFIX build
+	rm -rf $GCC $BINUTILS $KERNEL $GMP $MPFR $LIBC $PREFIX build
 	return
 else
 	echo "Running build script..."
@@ -110,7 +110,7 @@ patch -Np1 -i ../binutils-2.19.1-posix-1.patch
 
 # Fix for BUG 7026
 # http://sourceware.org/bugzilla/show_bug.cgi?id=7026
-sed -i 's/as_bad (_(r/as_bad ("%s", _(r/' $BINUTILS/gas/config/tc-arm.c
+sed -i 's/as_bad (_(r/as_bad ("%s", _(r/' gas/config/tc-arm.c
 
 # Build and install binutils
 cd $TOPLEVELDIR/build/$BINUTILS
@@ -163,4 +163,14 @@ make menuconfig
 make
 make PREFIX=$PREFIX install
 cd $TOPLEVELDIR
+
+# Installation of Final GCC cross compiler
+cd build/$GCC
+rm -rf *
+$TOPLEVELDIR/$GCC/configure --prefix=$PREFIX --build=$MACHTYPE \
+	--target=$TARGET --host=$MACHTYPE --with-sysroot=$PREFIX \
+	--disable-nls --enable-shared --enable-languages=c --enable-c99 \
+	--enable-long-long --with-mpfr=$PREFIX --with-gmp=$PREFIX
+make
+make install
 
