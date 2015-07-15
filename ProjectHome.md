@@ -1,0 +1,1 @@
+Build script for arm-linux-gcc. Cross GCC compiler for ARM. (HOST=x86)
